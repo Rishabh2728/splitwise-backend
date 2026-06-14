@@ -24,7 +24,7 @@ export const ImportService = {
     if (headerLine === -1) headerLine = 0;
     const header = lines[headerLine] || '';
 
-    const records = parse(text, { columns: true, skip_empty_lines: true });
+    const records: any[] = parse(text, { columns: true, skip_empty_lines: true }) as any[];
 
     await prisma.import.update({ where: { id: imp.id }, data: { totalRows: records.length } });
 
@@ -42,21 +42,21 @@ export const ImportService = {
           importId: imp.id,
           rowNumber: lineCursor + 1,
           rawData: { raw },
-          parsedData: rec,
+          parsedData: rec as any,
           status: 'PROCESSED'
         }
       });
 
       // Basic anomaly checks
       const anomalies: any[] = [];
-      const amount = rec.amount ?? rec.total ?? rec.value;
+      const amount = (rec as any).amount ?? (rec as any).total ?? (rec as any).value;
       if (amount === undefined || amount === null || isNaN(Number(amount))) {
         anomalies.push({ type: 'Invalid amount', severity: 'HIGH', description: 'Missing or invalid amount' });
       } else if (Number(amount) < 0) {
         anomalies.push({ type: 'Negative amount', severity: 'HIGH', description: 'Amount is negative' });
       }
 
-      if (!rec.payer && !rec.payee && !rec.paid_by) {
+      if (!(rec as any).payer && !(rec as any).payee && !(rec as any).paid_by) {
         anomalies.push({ type: 'Missing payer', severity: 'MEDIUM', description: 'No payer/payee field detected' });
       }
 
