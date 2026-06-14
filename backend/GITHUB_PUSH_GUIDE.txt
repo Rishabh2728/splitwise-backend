@@ -1,0 +1,9 @@
+GITHUB PUSH GUIDE
+
+Follow atomic commits. Example:
+
+git add <file>
+git commit -m "chore: add <file> -- <purpose>"
+git push origin main
+
+Do not bulk commit multiple unrelated changes.
