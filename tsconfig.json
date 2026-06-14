@@ -9,5 +9,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "jest.config.ts", "jest.config.js", "prisma"]
+  "exclude": ["node_modules", "dist", "jest.config.ts", "jest.config.js", "prisma", "src/tests"]
 }
