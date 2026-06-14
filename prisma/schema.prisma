@@ -70,6 +70,8 @@ model User {
   importUploads     Import[]
   auditLogs         AuditLog[]
   notifications     Notification[]
+  snapshots         BalanceSnapshot[]
+  reviewedAnomalies Anomaly[]
 }
 
 model Group {
@@ -115,6 +117,7 @@ model Expense {
 
   participants      ExpenseParticipant[]
   settlements       Settlement[]
+  anomalies         Anomaly[]
 }
 
 model ExpenseParticipant {
