@@ -7,9 +7,225 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enums
+enum MembershipStatus {
+  ACTIVE
+  LEFT
+  PENDING
+}
+
+enum SplitType {
+  EQUAL
+  PERCENTAGE
+  EXACT
+  SHARES
+  CUSTOM
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum AnomalySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AnomalyState {
+  PENDING
+  APPROVED
+  REJECTED
+  OVERRIDDEN
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ImportRowStatus {
+  PENDING
+  PROCESSED
+  FLAGGED
+}
+
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
   createdAt DateTime @default(now())
+
+  memberships       GroupMembership[]
+  expensesPaid      Expense[]         @relation("PaidBy")
+  expenseParticipation ExpenseParticipant[]
+  settlementsFrom   Settlement[]      @relation("payer")
+  settlementsTo     Settlement[]      @relation("receiver")
+  importUploads     Import[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
 }
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  baseCurrency String  @default("USD")
+  createdAt   DateTime @default(now())
+
+  memberships GroupMembership[]
+  expenses    Expense[]
+  snapshots   BalanceSnapshot[]
+}
+
+model GroupMembership {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  group     Group    @relation(fields: [groupId], references: [id])
+  groupId   String
+  startDate DateTime
+  endDate   DateTime?
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id                String   @id @default(cuid())
+  group             Group    @relation(fields: [groupId], references: [id])
+  groupId           String
+  payer             User     @relation("PaidBy", fields: [payerId], references: [id])
+  payerId           String
+  title             String?
+  description       String?
+  date              DateTime
+  originalAmount    Decimal  @db.Decimal(20, 8)
+  originalCurrency  String
+  exchangeRate      Decimal? @db.Decimal(36, 18)
+  convertedAmount   Decimal? @db.Decimal(20, 8)
+  baseCurrency      String
+  splitType         SplitType
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  participants      ExpenseParticipant[]
+  settlements       Settlement[]
+}
+
+model ExpenseParticipant {
+  id           String   @id @default(cuid())
+  expense      Expense  @relation(fields: [expenseId], references: [id])
+  expenseId    String
+  user         User?    @relation(fields: [userId], references: [id])
+  userId       String?
+  amount       Decimal? @db.Decimal(20, 8)
+  percentage   Float?
+  share        Int?
+  isActive     Boolean  @default(true)
+  note         String?
+}
+
+model Settlement {
+  id               String   @id @default(cuid())
+  expense          Expense? @relation(fields: [expenseId], references: [id])
+  expenseId        String?
+  payer            User     @relation("payer", fields: [payerId], references: [id])
+  payerId          String
+  receiver         User     @relation("receiver", fields: [receiverId], references: [id])
+  receiverId       String
+  amount           Decimal  @db.Decimal(20, 8)
+  supportingExpenses Json?
+  status           SettlementStatus @default(PENDING)
+  createdAt        DateTime @default(now())
+  settledAt        DateTime?
+}
+
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  group     Group    @relation(fields: [groupId], references: [id])
+  groupId   String
+  balance   Decimal  @db.Decimal(20, 8)
+  snapshotAt DateTime @default(now())
+}
+
+model CurrencyRate {
+  id          String   @id @default(cuid())
+  baseCurrency String
+  currency    String
+  rate        Decimal  @db.Decimal(36, 18)
+  timestamp   DateTime @default(now())
+}
+
+model Import {
+  id           String   @id @default(cuid())
+  filename     String
+  uploader     User?    @relation(fields: [uploaderId], references: [id])
+  uploaderId   String?
+  uploadedAt   DateTime @default(now())
+  totalRows    Int      @default(0)
+  processedRows Int     @default(0)
+  importedRows Int      @default(0)
+  flaggedRows  Int      @default(0)
+  status       ImportStatus @default(PENDING)
+  report       Json?
+  rows         ImportRow[]
+}
+
+model ImportRow {
+  id         String   @id @default(cuid())
+  importRef  Import   @relation(fields: [importId], references: [id])
+  importId   String
+  rowNumber  Int
+  rawData    Json
+  parsedData Json?
+  status     ImportRowStatus @default(PENDING)
+  anomalies  Anomaly[]
+}
+
+model Anomaly {
+  id           String   @id @default(cuid())
+  importRow    ImportRow? @relation(fields: [importRowId], references: [id])
+  importRowId  String?
+  expense      Expense? @relation(fields: [expenseId], references: [id])
+  expenseId    String?
+  type         String
+  severity     AnomalySeverity
+  state        AnomalyState @default(PENDING)
+  description  String?
+  detectedAt   DateTime @default(now())
+  reviewedBy   User?    @relation(fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedAt   DateTime?
+  resolution   Json?
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  action    String
+  model     String
+  recordId  String?
+  oldValue  Json?
+  newValue  Json?
+  reason    String?
+  timestamp DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  payload   Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
